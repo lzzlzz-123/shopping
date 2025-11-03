@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: microservices
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - microservices
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices
+
+  # API Gateway
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: development
+    depends_on:
+      - user-service
+      - merchant-service
+      - product-service
+      - order-service
+    networks:
+      - microservices
+
+  # User Service
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8081:8081"
+    environment:
+      NODE_ENV: development
+      PORT: 8081
+      DATABASE_URL: mysql://root:root@mysql:3306/microservices
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - microservices
+
+  # Merchant Service
+  merchant-service:
+    build: ./services/merchant-service
+    ports:
+      - "8082:8082"
+    environment:
+      NODE_ENV: development
+      PORT: 8082
+      DATABASE_URL: mysql://root:root@mysql:3306/microservices
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - microservices
+
+  # Product Service
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "8083:8083"
+    environment:
+      NODE_ENV: development
+      PORT: 8083
+      DATABASE_URL: mysql://root:root@mysql:3306/microservices
+      REDIS_URL: redis://redis:6379
+      MERCHANT_SERVICE_URL: http://merchant-service:8082
+    depends_on:
+      - mysql
+      - redis
+      - merchant-service
+    networks:
+      - microservices
+
+  # Order Service
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "8084:8084"
+    environment:
+      NODE_ENV: development
+      PORT: 8084
+      DATABASE_URL: mysql://root:root@mysql:3306/microservices
+      REDIS_URL: redis://redis:6379
+      USER_SERVICE_URL: http://user-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8083
+    depends_on:
+      - mysql
+      - redis
+      - user-service
+      - product-service
+    networks:
+      - microservices
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - microservices
+
+volumes:
+  mysql_data:
+
+networks:
+  microservices:
+    driver: bridge
