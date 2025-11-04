@@ -177,6 +177,107 @@ curl http://localhost:8080/api/users
 curl http://localhost:8080/api/users/1
 ```
 
+## 数据库初始化（导入示例数据）
+
+服务启动后，您可以导入示例数据来进行测试。系统提供了多种方式来初始化数据库。
+
+### 快速导入（推荐）
+
+#### 方式1：使用 Shell 脚本（Linux/Mac）
+
+```bash
+chmod +x sql/import-database.sh
+./sql/import-database.sh
+```
+
+#### 方式2：使用 Node.js 脚本（所有平台）
+
+```bash
+# 如果还没有安装依赖
+npm install mysql2 dotenv
+
+# 运行导入脚本
+node sql/import-database.js
+```
+
+#### 方式3：使用 MySQL 命令行
+
+```bash
+# 方式1：直接导入
+mysql -u root -p microservices < sql/init-database.sql
+
+# 方式2：指定主机和端口
+mysql -h localhost -P 3306 -u root -p microservices < sql/init-database.sql
+```
+
+### 导入的示例数据
+
+导入脚本会为您创建并填充以下表格：
+- **5 个用户** - 用于测试用户相关 API
+- **5 个商家** - 分布在不同的产品类别
+- **15 个商品** - 电子产品、服装、家具、运动、美妆等
+- **5 个订单** - 不同订单状态（待处理、已确认、已发货、已交付）
+
+### 验证导入成功
+
+```bash
+# 查看数据统计
+mysql -u root -p microservices -e "
+SELECT 'users' as table_name, COUNT(*) as rows FROM users
+UNION ALL
+SELECT 'merchants', COUNT(*) FROM merchants
+UNION ALL
+SELECT 'products', COUNT(*) FROM products
+UNION ALL
+SELECT 'orders', COUNT(*) FROM orders
+UNION ALL
+SELECT 'order_items', COUNT(*) FROM order_items;
+"
+```
+
+应该看到如下输出：
+```
+| table_name  | rows |
+|-------------|------|
+| users       |    5 |
+| merchants   |    5 |
+| products    |   15 |
+| orders      |    5 |
+| order_items |   13 |
+```
+
+### 自定义导入参数
+
+如果您使用了不同的 MySQL 凭据，可以通过环境变量指定：
+
+```bash
+# Linux/Mac
+export DATABASE_HOST=192.168.1.100
+export DATABASE_USER=admin
+export DATABASE_PASSWORD=yourpassword
+./sql/import-database.sh
+
+# 或者在命令行中直接设置
+DATABASE_USER=admin DATABASE_PASSWORD=pass123 ./sql/import-database.sh
+```
+
+### 重置数据库
+
+如果需要清空数据并重新导入：
+
+```bash
+# 使用 Docker 清除数据卷
+docker-compose down -v
+
+# 重新启动服务（会自动创建新的数据库）
+docker-compose up -d
+
+# 重新导入示例数据
+./sql/import-database.sh
+```
+
+更多详细信息请参考 [SQL 导入指南](./SQL_IMPORT_GUIDE.md)。
+
 ## 常见问题
 
 ### Docker 容器无法启动
